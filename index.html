@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Jejum Tracker</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-color: #1c1c1e;
+            --primary: #5e5ce6;
+            --secondary: #30d158;
+            --text-main: #ffffff;
+            --text-sec: #8e8e93;
+            --danger: #ff453a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timer-wrapper {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        svg { transform: rotate(-90deg); width: 100%; height: 100%; position: absolute; }
+        circle { fill: none; stroke-width: 16; stroke-linecap: round; }
+        .bg-circle { stroke: #252525; }
+        .progress-circle { 
+            stroke: var(--primary); 
+            stroke-dasharray: 816; 
+            stroke-dashoffset: 0; 
+            transition: stroke-dashoffset 0.5s ease-out, stroke 0.3s;
+        }
+
+        .info-inner { z-index: 10; text-align: center; }
+        .mode-label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-sec); margin-bottom: 5px; }
+        .main-timer { font-size: 3.8rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -2px; line-height: 1; }
+        .sub-timer { font-size: 0.9rem; color: var(--text-sec); margin-top: 10px; font-weight: 500;}
+
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 0 20px 20px;
+            width: 100%;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--card-color);
+            padding: 10px 20px;
+            border-radius: 12px;
+            width: 45%;
+        }
+
+        .status-title { font-size: 0.75rem; color: var(--text-sec); text-transform: uppercase; margin-bottom: 4px; }
+        .status-value { font-size: 1.2rem; font-weight: 700; }
+
+        .controls {
+            background-color: var(--card-color);
+            padding: 30px 20px 40px 20px;
+            border-radius: 32px 32px 0 0;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .label-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: var(--text-sec); }
+        .highlight { color: white; font-weight: 600; font-size: 1rem; }
+
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; background: #3a3a3c; border-radius: 3px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 26px; width: 26px; border-radius: 50%; background: white; margin-top: -10px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+        input[type="time"] {
+            background: #2c2c2e; border: none; color: white;
+            padding: 8px 12px; border-radius: 8px; font-size: 1.1rem;
+            font-family: inherit; outline: none; text-align: center;
+        }
+
+        .btn-main {
+            width: 100%; padding: 18px; border: none; border-radius: 18px;
+            background: var(--primary); color: white; font-size: 1.1rem; font-weight: 700;
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .btn-main:active { transform: scale(0.98); opacity: 0.9; }
+        .btn-main.stop { background: var(--bg-color); border: 2px solid var(--danger); color: var(--danger); }
+
+        .state-eating .progress-circle { stroke: var(--secondary); }
+        .state-eating .mode-label { color: var(--secondary); }
+    </style>
+</head>
+<body>
+
+    <main>
+        <div class="timer-wrapper">
+            <svg>
+                <circle class="bg-circle" cx="140" cy="140" r="130"></circle>
+                <circle class="progress-circle" cx="140" cy="140" r="130" id="progressRing"></circle>
+            </svg>
+            <div class="info-inner">
+                <div class="mode-label" id="statusLabel">CARREGANDO...</div>
+                <div class="main-timer" id="mainTimer">--:--</div>
+                <div class="sub-timer" id="subTimer">...</div>
+            </div>
+        </div>
+    </main>
+
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-title">Meta Jejum</span>
+            <span class="status-value" id="targetFasting">16h</span>
+        </div>
+        <div class="status-item">
+            <span class="status-title">Janela Comer</span>
+            <span class="status-value" id="targetEating">8h</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <div class="label-row">
+                <span>Comecei às:</span>
+                <input type="time" id="startTimeInput">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="label-row">
+                <span>Meta de Jejum</span>
+                <span class="highlight" id="sliderValue">16 horas</span>
+            </div>
+            <input type="range" id="goalSlider" min="12" max="23" step="1" value="16">
+        </div>
+
+        <button class="btn-main" id="toggleBtn">INICIAR AGORA</button>
+    </div>
+
+    <script>
+        const RADIUS = 130;
+        const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+        const STORE_KEY = "jejum_app_v1"; // Chave para salvar no celular
+        
+        const progressRing = document.getElementById('progressRing');
+        const mainTimer = document.getElementById('mainTimer');
+        const subTimer = document.getElementById('subTimer');
+        const statusLabel = document.getElementById('statusLabel');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const startTimeInput = document.getElementById('startTimeInput');
+        const goalSlider = document.getElementById('goalSlider');
+        const sliderValue = document.getElementById('sliderValue');
+        const targetFasting = document.getElementById('targetFasting');
+        const targetEating = document.getElementById('targetEating');
+
+        progressRing.style.strokeDasharray = `${CIRCUMFERENCE} ${CIRCUMFERENCE}`;
+        progressRing.style.strokeDashoffset = 0;
+
+        let isRunning = false;
+        let animationFrameId;
+
+        // --- SISTEMA DE STORAGE (SALVAR/CARREGAR) ---
+
+        function saveData() {
+            const data = {
+                isRunning: isRunning,
+                goal: goalSlider.value,
+                startTime: startTimeInput.value,
+                lastSaved: new Date().getTime()
+            };
+            localStorage.setItem(STORE_KEY, JSON.stringify(data));
+        }
+
+        function loadData() {
+            const savedJSON = localStorage.getItem(STORE_KEY);
+            if (!savedJSON) {
+                // Se não tiver nada salvo, configura padrão
+                setInputToNow();
+                resetVisuals();
+                return;
+            }
+
+            const data = JSON.parse(savedJSON);
+            
+            // Restaura valores
+            goalSlider.value = data.goal;
+            startTimeInput.value = data.startTime;
+            
+            if (data.isRunning) {
+                // Se estava rodando, retoma imediatamente
+                isRunning = true;
+                setRunningStateUI();
+                updateLoop();
+            } else {
+                // Se estava pausado
+                resetVisuals();
+            }
+            updateStaticInfo(); // Atualiza textos da tela
+        }
+
+        // --- FUNÇÕES DE TEMPO ---
+
+        function setInputToNow() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            startTimeInput.value = `${h}:${m}`;
+        }
+
+        function getStartDateObject() {
+            const now = new Date();
+            const [inputH, inputM] = startTimeInput.value.split(':').map(Number);
+            let start = new Date();
+            start.setHours(inputH, inputM, 0, 0);
+
+            // Se hora selecionada > hora atual, assume ontem
+            if (start > now) {
+                start.setDate(start.getDate() - 1);
+            }
+            return start;
+        }
+
+        function formatTime(ms) {
+            if (ms < 0) ms = 0;
+            const totalSeconds = Math.floor(ms / 1000);
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const s = totalSeconds % 60;
+            return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }
+
+        // --- LOOP PRINCIPAL ---
+
+        function updateLoop() {
+            if (!isRunning) return;
+
+            const now = new Date();
+            const start = getStartDateObject();
+            const goalHours = parseInt(goalSlider.value);
+            
+            const fastingDurationMs = goalHours * 3600 * 1000;
+            const cycleDurationMs = 24 * 3600 * 1000;
+            const elapsed = now - start;
+
+            // FASE 1: JEJUM
+            if (elapsed < fastingDurationMs) {
+                const remaining = fastingDurationMs - elapsed;
+                
+                document.body.classList.remove('state-eating');
+                statusLabel.textContent = "EM JEJUM";
+                mainTimer.textContent = formatTime(remaining);
+                
+                const endTime = new Date(start.getTime() + fastingDurationMs);
+                const endH = String(endTime.getHours()).padStart(2,'0');
+                const endM = String(endTime.getMinutes()).padStart(2,'0');
+                subTimer.textContent = `Pode comer às ${endH}:${endM}`;
+
+                const progress = remaining / fastingDurationMs;
+                progressRing.style.strokeDashoffset = CIRCUMFERENCE - (progress * CIRCUMFERENCE);
+                progressRing.style.stroke = "#5e5ce6";
+            }
+            // FASE 2: ALIMENTAÇÃO
+            else if (elapsed < cycleDurationMs) {
+                const eatingDurationMs = cycleDurationMs - fastingDurationMs;
+                const timeInEatingWindow = elapsed - fastingDurationMs;
+                const remainingEating = eatingDurationMs - timeInEatingWindow;
+
+                document.body.classList.add('state-eating');
+                statusLabel.textContent = "JANELA ALIMENTAR";
+                mainTimer.textContent = formatTime(remainingEating);
+                subTimer.textContent = "Tempo restante para comer";
+
+                const progress = remainingEating / eatingDurationMs;
+                progressRing.style.strokeDashoffset = CIRCUMFERENCE - (progress * CIRCUMFERENCE);
+                progressRing.style.stroke = "#30d158";
+            }
+            // FASE 3: CICLO FECHADO
+            else {
+                document.body.classList.remove('state-eating');
+                statusLabel.textContent = "CICLO ENCERRADO";
+                mainTimer.textContent = "00:00:00";
+                subTimer.textContent = "Reinicie o contador";
+                progressRing.style.strokeDashoffset = CIRCUMFERENCE;
+                progressRing.style.stroke = "#3a3a3c";
+            }
+
+            animationFrameId = requestAnimationFrame(updateLoop);
+        }
+
+        // --- CONTROLES DE ESTADO (UI) ---
+
+        function updateStaticInfo() {
+            const val = goalSlider.value;
+            sliderValue.textContent = `${val} horas`;
+            targetFasting.textContent = `${val}h`;
+            targetEating.textContent = `${24 - val}h`;
+            
+            // Só salva se o usuário alterar a meta enquanto não estiver rodando
+            // (Para lembrar a preferência dele)
+            if (!isRunning) {
+                mainTimer.textContent = `${val}:00:00`;
+                subTimer.textContent = "Aguardando início";
+                saveData(); 
+            }
+        }
+
+        function setRunningStateUI() {
+            toggleBtn.textContent = "PARAR CONTADOR";
+            toggleBtn.classList.add('stop');
+            goalSlider.disabled = true;
+            startTimeInput.disabled = true;
+        }
+
+        function resetVisuals() {
+            isRunning = false;
+            cancelAnimationFrame(animationFrameId);
+            toggleBtn.textContent = "INICIAR AGORA";
+            toggleBtn.classList.remove('stop');
+            goalSlider.disabled = false;
+            startTimeInput.disabled = false;
+            statusLabel.textContent = "CONFIGURAR";
+            progressRing.style.strokeDashoffset = 0;
+            updateStaticInfo();
+        }
+
+        function toggleState() {
+            if (isRunning) {
+                // Usuário clicou em PARAR
+                resetVisuals();
+                saveData(); // Salva o estado "parado"
+            } else {
+                // Usuário clicou em INICIAR
+                isRunning = true;
+                setRunningStateUI();
+                updateLoop();
+                saveData(); // Salva o estado "rodando" e a hora de início
+            }
+        }
+
+        // --- EVENTOS ---
+        goalSlider.addEventListener('input', updateStaticInfo);
+        startTimeInput.addEventListener('change', () => { updateStaticInfo(); saveData(); });
+        toggleBtn.addEventListener('click', toggleState);
+
+        // --- INICIALIZAÇÃO ---
+        // Ao carregar a página, verifica se há dados salvos
+        window.addEventListener('load', loadData);
+
+    </script>
+</body>
+</html>
